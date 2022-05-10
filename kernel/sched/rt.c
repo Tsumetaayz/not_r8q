@@ -1530,10 +1530,26 @@ static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
 		rq->rt.rt_nr_running <= 2;
 }
 
+#ifdef CONFIG_RT_SOFTIRQ_AWARE_SCHED
+/*
+ * Return whether the given cpu is currently non-preemptible
+ * while handling a potentially long softirq, or if the current
+ * task is likely to block preemptions soon because it is a
+ * ksoftirq thread that is handling softirqs.
+ */
+static bool cpu_busy_with_softirqs(int cpu)
+{
+	u32 softirqs = per_cpu(active_softirqs, cpu) |
+		       __cpu_softirq_pending(cpu);
+
+	return softirqs & LONG_SOFTIRQ_MASK;
+}
+#else
 static bool cpu_busy_with_softirqs(int cpu)
 {
 	return false;
 }
+#endif /* CONFIG_RT_SOFTIRQ_AWARE_SCHED */
 
 static bool rt_task_fits_cpu(struct task_struct *p, int cpu)
 {
@@ -1586,10 +1602,11 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 	 * requirement of the task - which is only important on
 	 * heterogeneous systems like big.LITTLE.
 	 */
-	if (static_branch_unlikely(&sched_energy_present) ||
-	    (unlikely(rt_task(curr)) &&
-	     (curr->nr_cpus_allowed < 2 ||
-	      curr->prio <= p->prio))) {
+	test = static_branch_unlikely(&sched_energy_present) ||
+	       (curr && unlikely(rt_task(curr)) &&
+	       (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio));
+
+	if (test || !rt_task_fits_cpu(p, cpu)) {
 		int target = find_lowest_rq(p);
 
 		/*
