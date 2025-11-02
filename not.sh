@@ -57,12 +57,11 @@ else
     fi
     
     info "Extracting toolchain..."
-    # **FIX:** Extract *into* $LLVM_DIR and strip the top-level directory 
-    # from the archive (e.g., 'neutron-clang-17.0.0.../').
+
     if ! tar -I 'zstd' -xvf "$TEMP_ARCHIVE_PATH" -C "$LLVM_DIR" --strip-components=1; then
         echo -e "\e[1;31mError: Extraction failed. The archive might be corrupt or have an unexpected structure.\e[0m"
         rm -f "$TEMP_ARCHIVE_PATH"
-        rm -rf "$LLVM_DIR" # Clean up failed extraction
+        rm -rf "$LLVM_DIR"
         exit 1
     fi
     
@@ -70,19 +69,11 @@ else
     rm -f "$TEMP_ARCHIVE_PATH"
     info "Toolchain installed successfully to $LLVM_DIR"
 fi
-# --- End Toolchain Installation ---
-
-
-# --- START OF YOUR INITIAL SCRIPT ---
 
 # This line now points to the directory managed by the script above
 LLVM_PATH="$LLVM_DIR/bin/"
-# (Removed your duplicate LLVM_PATH line)
 
 KERNEL_NAME="Eclipse"
-
-# **FIX:** Removed the invisible non-breaking spaces before each line.
-# Also removed the redundant '$LLVM_PATH' from the PATH variable.
 HOST_BUILD_ENV="ARCH=arm64 \
                 CC=${LLVM_PATH}clang \
                 CROSS_COMPILE=${LLVM_PATH}aarch64-linux-gnu- \
