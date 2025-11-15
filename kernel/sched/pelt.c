@@ -30,8 +30,8 @@
 
 #include <trace/events/sched.h>
 
-int pelt_load_avg_period = PELT32_LOAD_AVG_PERIOD;
-int pelt_load_avg_max = PELT32_LOAD_AVG_MAX;
+int pelt_load_avg_period = PELT8_LOAD_AVG_PERIOD;
+int pelt_load_avg_max = PELT8_LOAD_AVG_MAX;
 const u32 *pelt_runnable_avg_yN_inv = pelt32_runnable_avg_yN_inv;
 
 static int __init set_pelt(char *str)
