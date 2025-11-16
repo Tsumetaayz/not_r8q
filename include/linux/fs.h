@@ -1375,6 +1375,7 @@ extern int send_sigurg(struct fown_struct *fown);
 #define SB_LAZYTIME	(1<<25) /* Update the on-disk [acm]times lazily */
 
 /* These sb flags are internal to the kernel */
+#define SB_MULTIMOUNT	(1<<21)
 #define SB_SUBMOUNT     (1<<26)
 #define SB_FORCE    	(1<<27)
 #define SB_NOSEC	(1<<28)

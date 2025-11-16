@@ -81,17 +81,19 @@ unsigned int sysctl_sched_cstate_aware = 1;
  *   SCHED_TUNABLESCALING_LOG - scaled logarithmical, *1+ilog(ncpus)
  *   SCHED_TUNABLESCALING_LINEAR - scaled linear, *ncpus
  *
- * (CFS  default SCHED_TUNABLESCALING_LOG  = *(1+ilog(ncpus))
+ * (EEVDF  default SCHED_TUNABLESCALING_LOG  = *(1+ilog(ncpus))
+ * (NOT   default SCHED_TUNABLESCALING_NONE  = *1
  */
-enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
+enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
 
 /*
  * Minimal preemption granularity for CPU-bound tasks:
  *
- * (default: 3 msec * (1 + ilog(ncpus)), units: nanoseconds)
+ * (EEVDF  default: 3 msec * (1 + ilog(ncpus)), units: nanoseconds)
+ * (NOT  default: 2.8 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
-unsigned int sysctl_sched_base_slice			= 3000000ULL;
-static unsigned int normalized_sysctl_sched_base_slice	= 3000000ULL;
+unsigned int sysctl_sched_base_slice			= 2800000ULL;
+static unsigned int normalized_sysctl_sched_base_slice	= 2800000ULL;
 
 const_debug unsigned int sysctl_sched_migration_cost	= 0UL;
 DEFINE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
