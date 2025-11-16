@@ -218,7 +218,7 @@ static void __kprobes kprobes_save_local_irqflag(struct kprobe_ctlblk *kcb,
 						struct pt_regs *regs)
 {
 	kcb->saved_irqflag = regs->pstate;
-	regs->pstate |= PSR_I_BIT;
+	write_sysreg(daif_bits | PSR_I_BIT | PSR_F_BIT, daif);
 }
 
 static void __kprobes kprobes_restore_local_irqflag(struct kprobe_ctlblk *kcb,
