@@ -437,8 +437,6 @@ int apfs_btree_insert(struct apfs_query *query, void *key, int key_len,
 		      void *val, int val_len)
 {
 	struct apfs_node *node = query->node;
-	struct super_block *sb = node->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct apfs_btree_node_phys *node_raw;
 	int toc_entry_size;
 	int err;
@@ -526,8 +524,6 @@ again:
 int apfs_btree_remove(struct apfs_query *query)
 {
 	struct apfs_node *node = query->node;
-	struct super_block *sb = node->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct apfs_btree_node_phys *node_raw;
 	int later_entries = node->records - query->index - 1;
 	int err;
@@ -617,7 +613,6 @@ int apfs_btree_replace(struct apfs_query *query, void *key, int key_len,
 {
 	struct apfs_node *node = query->node;
 	struct super_block *sb = node->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct apfs_btree_node_phys *node_raw;
 	int err;
 

@@ -237,7 +237,6 @@ int apfs_map_volume_super(struct super_block *sb, bool write)
 	struct apfs_omap_phys *msb_omap_raw;
 	struct apfs_node *vnode;
 	struct buffer_head *bh;
-	struct apfs_transaction *trans = &sbi->s_transaction;
 	u64 vol_id;
 	u64 vsb;
 	int err;

@@ -299,7 +299,6 @@ int apfs_delete_node(struct apfs_query *query)
 void apfs_update_node(struct apfs_node *node)
 {
 	struct super_block *sb = node->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct buffer_head *bh = node->object.bh;
 	struct apfs_btree_node_phys *raw = (void *)bh->b_data;
 	struct apfs_nloc *free_head;
@@ -711,7 +710,6 @@ static int apfs_btree_inc_height(struct apfs_query *query)
 	struct apfs_node *root = query->node;
 	struct apfs_node *new_node;
 	struct super_block *sb = root->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct apfs_btree_node_phys *root_raw;
 	struct apfs_btree_node_phys *new_raw;
 	struct apfs_btree_info *info;
@@ -816,7 +814,6 @@ static int apfs_copy_record_range(struct apfs_node *dest_node,
 				  int start, int end)
 {
 	struct super_block *sb = dest_node->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct apfs_btree_node_phys *dest_raw;
 	struct apfs_btree_node_phys *src_raw;
 	struct apfs_query *query = NULL;
@@ -914,7 +911,6 @@ static int apfs_attach_child(struct apfs_query *query, struct apfs_node *child)
 int apfs_node_split(struct apfs_query *query)
 {
 	struct super_block *sb = query->node->object.sb;
-	struct apfs_sb_info *sbi = APFS_SB(sb);
 	struct apfs_node *old_node, *new_node;
 	struct apfs_btree_node_phys *old_raw, *new_raw;
 	char *buffer = NULL;
