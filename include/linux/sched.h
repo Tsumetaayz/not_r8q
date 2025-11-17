@@ -1590,7 +1590,9 @@ struct task_struct {
 #endif
 
 	u8 qos_bucket;
-
+	u64 warp_expires;       /* timestamp when warp ends */
+	bool warp_active;       /* cached state */
+	
 	/*
 	 * New fields for task_struct should be added above here, so that
 	 * they are included in the randomized portion of task_struct.

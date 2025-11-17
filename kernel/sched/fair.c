@@ -63,6 +63,11 @@ walt_dec_cfs_rq_stats(struct cfs_rq *cfs_rq, struct task_struct *p) {}
 #endif
 
 /*
+ * clutch warp constants
+ */
+#define CLUTCH_WARP_WINDOW_NS  (5ULL * 1000 * 1000)  /* 5 ms */
+
+/*
  * Enable/disable honoring sync flag in energy-aware wakeups.
  */
 unsigned int sysctl_sched_sync_hint_enable = 1;
@@ -4353,12 +4358,25 @@ struct find_best_target_env {
 	bool strict_max;
 };
 
+static inline bool clutch_warp_active(struct task_struct *p, u64 now)
+{
+	p->warp_expires = now + CLUTCH_WARP_WINDOW_NS;
+	
+	return now < p->warp_expires;
+}
+
 static inline void clutch_assign_bucket_deadline(struct cfs_rq *cfs_rq,
                                                  struct sched_entity *se)
 {
 	struct task_struct *p = task_of(se);
 	u64 wcel = qos_wcel_us[p->qos_bucket];
 	u64 now = rq_clock_task(rq_of(cfs_rq));
+	
+	/* highest-priority EDF */
+	if (clutch_warp_active(p, now)) {
+		se->deadline = now;
+		return;
+	}
 	
 	if (wcel)
 	    se->deadline = now + wcel;
