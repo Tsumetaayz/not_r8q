@@ -134,7 +134,32 @@ static const u64 qos_wcel_us[] = {
 	[QOS_UT]     = 150000,
 	[QOS_BG]     = 250000,
 };
-	
+
+/*
+ * Since the clutch scheduler organizes threads based on the thread group
+ * and the scheduling bucket, its important to not mix threads from multiple
+ * priority bands into the same bucket. To achieve that, in the clutch bucket
+ * world, there is a scheduling bucket per QoS effectively.
+ */
+ 
+/* Buckets used for load calculation */
+typedef enum {
+	TH_BUCKET_FIXPRI = 0,                   /* Fixed-priority */
+	TH_BUCKET_SHARE_FG,                     /* Timeshare thread above BASEPRI_DEFAULT */
+	TH_BUCKET_SHARE_IN,                     /* Timeshare thread between BASEPRI_USER_INITIATED and BASEPRI_DEFAULT */
+	TH_BUCKET_SHARE_DF,                     /* Timeshare thread between BASEPRI_DEFAULT and BASEPRI_UTILITY */
+	TH_BUCKET_SHARE_UT,                     /* Timeshare thread between BASEPRI_UTILITY and MAXPRI_THROTTLE */
+	TH_BUCKET_SHARE_BG,                     /* Timeshare thread between MAXPRI_THROTTLE and MINPRI */
+	TH_BUCKET_RUN,                          /* All runnable threads */
+	TH_BUCKET_SCHED_MAX = TH_BUCKET_RUN,    /* Maximum schedulable buckets */
+	TH_BUCKET_MAX,
+} sched_bucket_t;
+
+/*
+ *	Macro to check for invalid priorities.
+ */
+#define invalid_pri(pri) ((pri) < MINPRI || (pri) > MAXPRI)
+
 enum task_boost_type {
 	TASK_BOOST_NONE = 0,
 	TASK_BOOST_ON_MID,
@@ -1592,6 +1617,7 @@ struct task_struct {
 	u8 qos_bucket;
 	u64 warp_expires;       /* timestamp when warp ends */
 	bool warp_active;       /* cached state */
+	u64 last_warp_start;
 	
 	/*
 	 * New fields for task_struct should be added above here, so that

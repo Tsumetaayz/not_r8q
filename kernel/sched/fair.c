@@ -63,9 +63,20 @@ walt_dec_cfs_rq_stats(struct cfs_rq *cfs_rq, struct task_struct *p) {}
 #endif
 
 /*
- * clutch warp constants
+ * clutch warp decay constants
  */
-#define CLUTCH_WARP_WINDOW_NS  (5ULL * 1000 * 1000)  /* 5 ms */
+#define CLUTCH_MIN_WARP_NS  (500ULL * 1000)
+#define CLUTCH_DECAY_NUM   1
+#define CLUTCH_DECAY_DENOM 2
+
+static uint32_t sched_clutch_root_bucket_warp_us[TH_BUCKET_SCHED_MAX] = {
+        ((uint32_t)~0), /* FIXPRI */
+        8000000,  /* FG (8ms)*/
+        4000000,  /* IN (4ms) */
+        2000000,  /* DF (2ms) */
+        1000000,  /* UT (1ms) */
+        0      /* BG (0ms) */
+};
 
 /*
  * Enable/disable honoring sync flag in energy-aware wakeups.
@@ -4360,10 +4371,35 @@ struct find_best_target_env {
 
 static inline bool clutch_warp_active(struct task_struct *p, u64 now)
 {
-	p->warp_expires = now + CLUTCH_WARP_WINDOW_NS;
+	u64 base_warp_ns = (u64)sched_clutch_root_bucket_warp_us[p->qos_bucket];
+	u64 decayed, remaining = (p->warp_expires > now) ? (p->warp_expires - now) : 0;
 	
-	return now < p->warp_expires;
+	/* 
+	 * Note-to-self: keeping track of the last time since the warp started could be useful
+	 * u64 elapsed = now - p->last_warp_start;
+	 */
+
+    	if (p->warp_expires == 0 || now >= p->warp_expires) {
+        	/* warp expired, start a new warp window */
+       		p->warp_expires = now + base_warp_ns;
+		p->last_warp_start = now;
+		p->warp_active = true;
+		return true;
+	}
+	
+	/* warp is active, decay */
+	decayed = remaining * CLUTCH_DECAY_NUM / CLUTCH_DECAY_DENOM;
+
+	if (decayed < CLUTCH_MIN_WARP_NS)
+		decayed = CLUTCH_MIN_WARP_NS;
+
+	p->warp_expires = now + decayed;
+	p->last_warp_start = now;
+	p->warp_active = true;
+
+	return true;
 }
+
 
 static inline void clutch_assign_bucket_deadline(struct cfs_rq *cfs_rq,
                                                  struct sched_entity *se)
@@ -4378,6 +4414,11 @@ static inline void clutch_assign_bucket_deadline(struct cfs_rq *cfs_rq,
 		return;
 	}
 	
+	/*
+	 * after the warp expires the tasks gets
+	 * back to the normal deadlines.
+	 */
+	 
 	if (wcel)
 	    se->deadline = now + wcel;
 }
