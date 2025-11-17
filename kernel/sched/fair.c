@@ -4353,6 +4353,17 @@ struct find_best_target_env {
 	bool strict_max;
 };
 
+static inline void clutch_assign_bucket_deadline(struct cfs_rq *cfs_rq,
+                                                 struct sched_entity *se)
+{
+	struct task_struct *p = task_of(se);
+	u64 wcel = qos_wcel_us[p->qos_bucket];
+	u64 now = rq_clock_task(rq_of(cfs_rq));
+	
+	if (wcel)
+	    se->deadline = now + wcel;
+}
+
 static inline void adjust_cpus_for_packing(struct task_struct *p,
 			int *target_cpu, int *best_idle_cpu,
 			int shallowest_idle_cstate,
@@ -4579,6 +4590,9 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 * EEVDF: vd_i = ve_i + r_i/w_i
 	 */
 	se->deadline = se->vruntime + vslice;
+	
+	/* --- INSERT CLUTCH BUCKET DEADLINE OVERRIDE HERE --- */
+	clutch_assign_bucket_deadline(cfs_rq, se);
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
