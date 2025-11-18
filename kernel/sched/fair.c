@@ -19,7 +19,16 @@
  *
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
+ *
+ *  Copyright (c) 2018 Apple Inc. All rights reserved.
+ *
+ *  This file contains Original Code and/or Modifications of Original Code
+ *  as defined in and that are subject to the Apple Public Source License
+ *  Version 2.0 (the 'License'). You may not use this file except in
+ *  compliance with the License.
+ *
  */
+ 
 #include <linux/rbtree_augmented.h>
 #include "sched.h"
 
