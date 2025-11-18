@@ -50,7 +50,7 @@ static int msm_notifier_fps_chg_callback(struct notifier_block *nb,
 
 	/*
 	 * Get ceiling of fps from notifier data to pass to scheduler.
-	 * Default will be FPS60 and sent to scheduler during suspend.
+	 * Default will be FPS120 and sent to scheduler during suspend.
 	 */
 	fps = notifier_data->refresh_rate;
 	if (fps > FPS120)
@@ -66,7 +66,7 @@ static int msm_notifier_fps_chg_callback(struct notifier_block *nb,
 	else if (fps > FPS0)
 		sched_fps = FPS30;
 	else
-		sched_fps = FPS60;
+		sched_fps = FPS120;
 
 	max_fps = sched_fps;
 
@@ -95,7 +95,6 @@ static int msm_notifier_fps_chg_callback(struct notifier_block *nb,
 				notifier_data->refresh_rate, max_fps);
 
 		active_displays->max_fps = max_fps;
-		sched_set_refresh_rate(max_fps);
 	}
 
 	return 0;

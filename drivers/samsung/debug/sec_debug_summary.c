@@ -628,29 +628,10 @@ static void __init summary_set_kallsyms_info(void)
 static void summary_set_lpm_info_runqueues(void)
 {
 	secdbg_apss->aplpm.p_runqueues = virt_to_phys((void *)&runqueues);
-#ifdef CONFIG_SCHED_WALT
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
-	secdbg_apss->aplpm.cstate_offset = offsetof(struct rq, cstate);
-#endif
-#endif
 }
-
-#ifdef CONFIG_SCHED_WALT
-int __weak get_num_clusters(void)
-{
-	return num_clusters;
-}
-#endif
 
 static void __init summary_set_lpm_info_cluster(void)
 {
-#ifdef CONFIG_SCHED_WALT
-	secdbg_apss->aplpm.num_clusters = get_num_clusters();
-	secdbg_apss->aplpm.p_cluster = virt_to_phys((void *)sched_cluster);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
-	secdbg_apss->aplpm.dstate_offset = offsetof(struct sched_cluster, dstate);
-#endif
-#endif
 }
 
 static void __init sec_debug_summary_external_init(void)

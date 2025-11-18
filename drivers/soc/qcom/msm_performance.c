@@ -465,27 +465,13 @@ static int msm_perf_core_ctl_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block msm_perf_nb = {
-	.notifier_call = msm_perf_core_ctl_notify
-};
-
-static bool core_ctl_register;
 static int set_core_ctl_register(const char *buf, const struct kernel_param *kp)
 {
 	int ret;
-	bool old_val = core_ctl_register;
 
 	ret = param_set_bool(buf, kp);
 	if (ret < 0)
 		return ret;
-
-	if (core_ctl_register == old_val)
-		return 0;
-
-	if (core_ctl_register)
-		core_ctl_notifier_register(&msm_perf_nb);
-	else
-		core_ctl_notifier_unregister(&msm_perf_nb);
 
 	return 0;
 }

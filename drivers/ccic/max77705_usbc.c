@@ -3702,8 +3702,6 @@ void max77705_clk_booster_set(void *data, int on)
 		// cpu freq
 		res = set_freq_limit(DVFS_BOOST_HOST_ID, MAX_FREQ);
 #endif
-		// hmp booster on
-		sched_set_boost(1);
 		// ddr freq
 		index = trans_freq_to_idx(2736);
 		msm_bus_scale_client_update_request(bus_hdl, index);
@@ -3734,8 +3732,6 @@ void max77705_clk_booster_off(struct work_struct *wk)
 	// cpu freq
 	res = set_freq_limit(DVFS_BOOST_HOST_ID, -1);
 #endif
-	// hmp booster off
-	sched_set_boost(0);
 	// ddr freq
 	msm_bus_scale_client_update_request(bus_hdl, 0);
 

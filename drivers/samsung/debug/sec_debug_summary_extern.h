@@ -13,18 +13,6 @@ extern const u8 kallsyms_token_table[] __weak;
 extern const u16 kallsyms_token_index[] __weak;
 extern const unsigned long kallsyms_markers[] __weak;
 
-/* kernel/sched/walt.c */
-#ifdef CONFIG_SCHED_WALT
-#include "../../kernel/sched/sched.h"
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
-extern struct walt_sched_cluster *sched_cluster[NR_CPUS];
-#else
-extern struct sched_cluster *sched_cluster[NR_CPUS];
-#endif
-extern int get_num_clusters(void) __weak;
-extern int num_clusters __weak;
-#endif
-
 /* kernel/sched/core.c */
 DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 

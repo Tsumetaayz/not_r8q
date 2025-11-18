@@ -9,8 +9,6 @@
 
 #include <trace/events/sched.h>
 
-#include "walt.h"
-
 int sched_rr_timeslice = RR_TIMESLICE;
 int sysctl_sched_rr_timeslice = (MSEC_PER_SEC * RR_TIMESLICE) / HZ;
 
@@ -1461,7 +1459,6 @@ enqueue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 		rt_se->timeout = 0;
 
 	enqueue_rt_entity(rt_se, flags);
-	walt_inc_cumulative_runnable_avg(rq, p);
 
 	if (!task_current(rq, p) && p->nr_cpus_allowed > 1)
 		enqueue_pushable_task(rq, p);
@@ -1475,7 +1472,6 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 
 	update_curr_rt(rq);
 	dequeue_rt_entity(rt_se, flags);
-	walt_dec_cumulative_runnable_avg(rq, p);
 
 	dequeue_pushable_task(rq, p);
 }
@@ -1830,8 +1826,7 @@ static int rt_energy_aware_wake_cpu(struct task_struct *task)
 	unsigned long util_cum;
 	unsigned long tutil = task_util(task);
 	int best_cpu_idle_idx = INT_MAX;
-	int cpu_idle_idx = -1;
-	bool boost_on_big = rt_boost_on_big();
+	int capacity_orig, fcpu, cpu_idle_idx = -1;
 
 	rcu_read_lock();
 
@@ -1843,79 +1838,60 @@ static int rt_energy_aware_wake_cpu(struct task_struct *task)
 	if (!sd)
 		goto unlock;
 
-retry:
 	sg = sd->groups;
-	do {
-		int fcpu = group_first_cpu(sg);
-		int capacity_orig = capacity_orig_of(fcpu);
+	fcpu = group_first_cpu(sg);
+	capacity_orig = capacity_orig_of(fcpu);
 
-		if (boost_on_big) {
-			if (is_min_capacity_cpu(fcpu))
-				continue;
-		} else {
-			if (capacity_orig > best_capacity)
-				continue;
-		}
+	for_each_cpu_and(cpu, lowest_mask, sched_group_span(sg)) {
 
-		for_each_cpu_and(cpu, lowest_mask, sched_group_span(sg)) {
+		trace_sched_cpu_util(cpu);
 
-			trace_sched_cpu_util(cpu);
+		if (cpu_isolated(cpu))
+			continue;
 
-			if (cpu_isolated(cpu))
-				continue;
+		if (__cpu_overutilized(cpu, tutil))
+			continue;
 
-			if (sched_cpu_high_irqload(cpu))
-				continue;
+		util = cpu_util(cpu);
 
-			if (__cpu_overutilized(cpu, tutil))
-				continue;
+		/* Find the least loaded CPU */
+		if (util > best_cpu_util)
+			continue;
 
-			util = cpu_util(cpu);
+		/*
+		 * If the previous CPU has same load, keep it as
+		 * best_cpu.
+		 */
+		if (best_cpu_util == util && best_cpu == task_cpu(task))
+			continue;
 
-			/* Find the least loaded CPU */
-			if (util > best_cpu_util)
-				continue;
+		/*
+		 * If candidate CPU is the previous CPU, select it.
+		 * Otherwise, if its load is same with best_cpu and in
+		 * a shallower C-state, select it.  If all above
+  		 * conditions are same, select the least cumulative
+      		 * window demand CPU.
+      		 */
+	      	if (sysctl_sched_cstate_aware)
+	      		cpu_idle_idx = idle_get_state_idx(cpu_rq(cpu));
 
-			/*
-			 * If the previous CPU has same load, keep it as
-			 * best_cpu.
-			 */
-			if (best_cpu_util == util && best_cpu == task_cpu(task))
-				continue;
+	      	util_cum = cpu_util_cum(cpu, 0);
+	      	if (cpu != task_cpu(task) && best_cpu_util == util) {
+	      		if (best_cpu_idle_idx < cpu_idle_idx)
+	      			continue;
 
-			/*
-			 * If candidate CPU is the previous CPU, select it.
-			 * Otherwise, if its load is same with best_cpu and in
-			 * a shallower C-state, select it.  If all above
-			 * conditions are same, select the least cumulative
-			 * window demand CPU.
-			 */
-			if (sysctl_sched_cstate_aware)
-				cpu_idle_idx = idle_get_state_idx(cpu_rq(cpu));
+	      		if (best_cpu_idle_idx == cpu_idle_idx &&
+	      				best_cpu_util_cum < util_cum)
+	      			continue;
+	      	}
 
-			util_cum = cpu_util_cum(cpu, 0);
-			if (cpu != task_cpu(task) && best_cpu_util == util) {
-				if (best_cpu_idle_idx < cpu_idle_idx)
-					continue;
-
-				if (best_cpu_idle_idx == cpu_idle_idx &&
-						best_cpu_util_cum < util_cum)
-					continue;
-			}
-
-			best_cpu_idle_idx = cpu_idle_idx;
-			best_cpu_util_cum = util_cum;
-			best_cpu_util = util;
-			best_cpu = cpu;
-			best_capacity = capacity_orig;
-		}
-
-	} while (sg = sg->next, sg != sd->groups);
-
-	if (unlikely(boost_on_big) && best_cpu == -1) {
-		boost_on_big = false;
-		goto retry;
-	}
+	      	best_cpu_idle_idx = cpu_idle_idx;
+	      	best_cpu_util_cum = util_cum;
+      		best_cpu_util = util;
+	      	best_cpu = cpu;
+      		best_capacity = capacity_orig;
+      	}
+	goto unlock;
 
 unlock:
 	rcu_read_unlock();
@@ -2699,9 +2675,6 @@ const struct sched_class rt_sched_class
 	.switched_to		= switched_to_rt,
 
 	.update_curr		= update_curr_rt,
-#ifdef CONFIG_SCHED_WALT
-	.fixup_walt_sched_stats	= fixup_walt_sched_stats_common,
-#endif
 
 #ifdef CONFIG_UCLAMP_TASK
 	.uclamp_enabled		= 1,
