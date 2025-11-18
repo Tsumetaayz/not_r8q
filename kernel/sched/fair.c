@@ -4523,29 +4523,6 @@ static inline bool clutch_warp_active(struct task_struct *p, u64 now)
 	return true;
 }
 
-
-static inline void clutch_assign_bucket_deadline(struct cfs_rq *cfs_rq,
-                                                 struct sched_entity *se)
-{
-	struct task_struct *p = task_of(se);
-	u64 wcel = (u64)sched_clutch_root_bucket_wcel_us[p->qos_bucket];
-	u64 now = rq_clock_task(rq_of(cfs_rq));
-	
-	/* highest-priority EDF */
-	if (clutch_warp_active(p, now)) {
-		se->deadline = now;
-		return;
-	}
-	
-	/*
-	 * after the warp expires the tasks gets
-	 * back to the normal deadlines.
-	 */
-	 
-	if (wcel)
-	    se->deadline = now + wcel;
-}
-
 static inline void adjust_cpus_for_packing(struct task_struct *p,
 			int *target_cpu, int *best_idle_cpu,
 			int shallowest_idle_cstate,
@@ -4667,9 +4644,20 @@ static inline bool entity_is_long_sleeper(struct sched_entity *se)
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
+	struct task_struct *p = task_of(se);
 	u64 vslice, vruntime = avg_vruntime(cfs_rq);
+	u64 wcel = (u64)sched_clutch_root_bucket_wcel_us[p->qos_bucket];
+	u64 now = rq_clock_task(rq_of(cfs_rq));
 	s64 lag = 0;
-
+	
+        /* warp is active, it's the
+         * highest-priority EDF
+         */
+	if (clutch_warp_active(p, now)) {
+		se->deadline = now;
+		return;
+	}
+	    
 	if (!se->custom_slice)
 		se->slice = sysctl_sched_base_slice;
 	vslice = calc_delta_fair(se->slice, se);
@@ -4765,8 +4753,8 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 */
 	se->deadline = se->vruntime + vslice;
 	
-	/* --- INSERT CLUTCH BUCKET DEADLINE OVERRIDE HERE --- */
-	clutch_assign_bucket_deadline(cfs_rq, se);
+	if (wcel)
+		se->deadline = now + wcel;
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
