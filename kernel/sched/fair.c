@@ -69,14 +69,70 @@ walt_dec_cfs_rq_stats(struct cfs_rq *cfs_rq, struct task_struct *p) {}
 #define CLUTCH_DECAY_NUM   1
 #define CLUTCH_DECAY_DENOM 2
 
-static uint32_t sched_clutch_root_bucket_warp_us[TH_BUCKET_SCHED_MAX] = {
-        ((uint32_t)~0), /* FIXPRI */
-        8000000,  /* FG (8ms)*/
-        4000000,  /* IN (4ms) */
-        2000000,  /* DF (2ms) */
-        1000000,  /* UT (1ms) */
-        0      /* BG (0ms) */
+/*
+ * Special markers for buckets that have invalid WCELs/quantums etc.
+ */
+#define SCHED_CLUTCH_INVALID_TIME_32 ((uint32_t)~0)
+
+/*
+ * Root level bucket WCELs
+ *
+ * The root level bucket selection algorithm is an Earliest Deadline
+ * First (EDF) algorithm where the deadline for buckets are defined
+ * by the worst-case-execution-latency and the make runnable timestamp
+ * for the bucket.
+ *
+ */
+static uint32_t sched_clutch_root_bucket_wcel_us[TH_BUCKET_SCHED_MAX] = {
+	SCHED_CLUTCH_INVALID_TIME_32,                   /* FIXPRI */
+	0,                                              /* FG */
+	37500,                                          /* IN (37.5ms) */
+	75000,                                          /* DF (75ms) */
+	150000,                                         /* UT (150ms) */
+	250000                                          /* BG (250ms) */
 };
+//static uint64_t sched_clutch_root_bucket_wcel[TH_BUCKET_SCHED_MAX] = {0}; // unused-variable
+
+/*
+ * Root level bucket warp
+ *
+ * Each root level bucket has a warp value associated with it as well.
+ * The warp value allows the root bucket to effectively warp ahead of
+ * lower priority buckets for a limited time even if it has a later
+ * deadline. The warping behavior provides extra (but limited)
+ * opportunity for high priority buckets to remain responsive.
+ */
+
+/* Special warp deadline value to indicate that the bucket has not used any warp yet */
+#define SCHED_CLUTCH_ROOT_BUCKET_WARP_UNUSED    (SCHED_CLUTCH_INVALID_TIME_64)
+
+/* Warp window durations for various tiers */
+static uint32_t sched_clutch_root_bucket_warp_us[TH_BUCKET_SCHED_MAX] = {
+        SCHED_CLUTCH_INVALID_TIME_32,                   /* FIXPRI */
+        8000,                                           /* FG (8ms)*/
+        4000,                                           /* IN (4ms) */
+        2000,                                           /* DF (2ms) */
+        1000,                                           /* UT (1ms) */
+        0                                               /* BG (0ms) */
+};
+// static uint64_t sched_clutch_root_bucket_warp[TH_BUCKET_SCHED_MAX] = {0}; // unused-variable
+
+/*
+ * Thread level quantum
+ *
+ * The algorithm defines quantums for threads at various buckets. This
+ * (combined with the root level bucket quantums) restricts how much
+ * the lower priority levels can preempt the higher priority threads.
+ */
+//static uint32_t sched_clutch_thread_quantum_us[TH_BUCKET_SCHED_MAX] = {
+//	10000,                                          /* FIXPRI (10ms) */
+//	10000,                                          /* FG (10ms) */
+//	8000,                                           /* IN (8ms) */
+//	6000,                                           /* DF (6ms) */
+//	4000,                                           /* UT (4ms) */
+//	2000                                            /* BG (2ms) */
+//};
+//static uint64_t sched_clutch_thread_quantum[TH_BUCKET_SCHED_MAX] = {0}; // unused-variable
 
 /*
  * Enable/disable honoring sync flag in energy-aware wakeups.
@@ -166,11 +222,11 @@ unsigned int sched_capacity_margin_down[NR_CPUS] = {
 	[0 ... NR_CPUS - 1] = 1078
 }; /* ~5% margin */
 unsigned int sched_capacity_margin_up_boosted[NR_CPUS] = {
-	3658, 3658, 3658, 3658, 1280, 1280, 1280, 1078
-}; /* 72% margin for small, 20% for big, 5% for big+ */
+	1280, 1280, 1280, 1280, 1280, 1280, 1280, 1280
+}; /* 72% margin for small, 20% for big, 20% for prime */
 unsigned int sched_capacity_margin_down_boosted[NR_CPUS] = {
 	3658, 3658, 3658, 3658, 3658, 3658, 3658, 3658
-}; /* not used for small cores, 72% margin for big, 72% margin for big+ */
+}; /* 72% margin for small, 72% margin for big, 72% margin for big+ */
 
 /* 1ms default for 20ms window size scaled to 1024 */
 unsigned int sysctl_sched_min_task_util_for_boost = 60;
@@ -4405,7 +4461,7 @@ static inline void clutch_assign_bucket_deadline(struct cfs_rq *cfs_rq,
                                                  struct sched_entity *se)
 {
 	struct task_struct *p = task_of(se);
-	u64 wcel = qos_wcel_us[p->qos_bucket];
+	u64 wcel = (u64)sched_clutch_root_bucket_wcel_us[p->qos_bucket];
 	u64 now = rq_clock_task(rq_of(cfs_rq));
 	
 	/* highest-priority EDF */

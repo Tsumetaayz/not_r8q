@@ -110,31 +110,6 @@ struct task_group;
 
 #define task_is_stopped_or_traced(task)	((task->state & (__TASK_STOPPED | __TASK_TRACED)) != 0)
 
-
-/*
- * WCEL-based bucket-level scheduling stuff, don't touch!
- * We are using the values shown by Apple in their
- * documentation about the clutch+edge scheduler.
- */
-	 
-enum qos_bucket {
-	QOS_FIXPRI,
-	QOS_FG,
-	QOS_IN,
-	QOS_DF,
-	QOS_UT,
-	QOS_BG,
-};
-
-static const u64 qos_wcel_us[] = {
-	[QOS_FIXPRI] = 0,
-	[QOS_FG]     = 0,
-	[QOS_IN]     = 37500,
-	[QOS_DF]     = 75000,
-	[QOS_UT]     = 150000,
-	[QOS_BG]     = 250000,
-};
-
 /*
  * Since the clutch scheduler organizes threads based on the thread group
  * and the scheduling bucket, its important to not mix threads from multiple
