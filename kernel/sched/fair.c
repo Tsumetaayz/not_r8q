@@ -4481,17 +4481,6 @@ static inline bool task_demand_fits(struct task_struct *p, int cpu)
 	return task_fits_capacity(p, capacity, cpu);
 }
 
-struct find_best_target_env {
-	int placement_boost;
-	int need_idle;
-	int fastpath;
-	int start_cpu;
-	int skip_cpu;
-	bool is_rtg;
-	bool boosted;
-	bool strict_max;
-};
-
 static inline bool clutch_warp_active(struct task_struct *p, u64 now)
 {
 	u64 base_warp_ns = (u64)sched_clutch_root_bucket_warp_us[p->qos_bucket];
@@ -4526,7 +4515,6 @@ static inline bool clutch_warp_active(struct task_struct *p, u64 now)
 static inline void adjust_cpus_for_packing(struct task_struct *p,
 			int *target_cpu, int *best_idle_cpu,
 			int shallowest_idle_cstate,
-			struct find_best_target_env *fbt_env,
 			bool boosted)
 {
 	unsigned long tutil, estimated_capacity;
@@ -4534,8 +4522,7 @@ static inline void adjust_cpus_for_packing(struct task_struct *p,
 	if (*best_idle_cpu == -1 || *target_cpu == -1)
 		return;
 
-	if (fbt_env->need_idle || boosted ||
-		shallowest_idle_cstate <= 0) {
+	if (shallowest_idle_cstate <= 0) {
 		*target_cpu = -1;
 		return;
 	}
@@ -4554,9 +4541,6 @@ static inline void adjust_cpus_for_packing(struct task_struct *p,
 		*target_cpu = -1;
 		return;
 	}
-
-	if (fbt_env->is_rtg)
-		*best_idle_cpu = -1;
 }
 
 static inline void update_misfit_status(struct task_struct *p, struct rq *rq)
@@ -7742,20 +7726,14 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	struct perf_domain *pd;
 	struct sched_domain *sd;
 	cpumask_t *candidates;
-	struct find_best_target_env fbt_env;
 	bool need_idle = wake_to_idle(p);
 	u64 start_t = 0;
 	int delta = 0;
-	int task_boost = per_task_boost(p);
-	int boosted = (schedtune_task_boost(p) > 0) || (task_boost > 0);
 	int start_cpu;
 
 	start_cpu = get_start_cpu(p);
 	if (start_cpu < 0)
 		goto eas_not_ready;
-
-	fbt_env.fastpath = 0;
-	fbt_env.need_idle = need_idle;
 
 	if (trace_sched_task_util_enabled())
 		start_t = sched_clock();
@@ -7770,7 +7748,6 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	if (sysctl_sched_sync_hint_enable && sync &&
 				bias_to_this_cpu(p, cpu, start_cpu)) {
 		best_energy_cpu = cpu;
-		fbt_env.fastpath = SYNC_WAKEUP;
 		goto done;
 	}
 
@@ -7827,7 +7804,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		goto unlock;
 	}
 
-	if (fbt_env.need_idle || boosted || __cpu_overutilized(prev_cpu, delta) ||
+	if (__cpu_overutilized(prev_cpu, delta) ||
 	    !task_fits_max(p, prev_cpu) || cpu_isolated(prev_cpu)) {
 		best_energy_cpu = cpu;
 		goto unlock;
