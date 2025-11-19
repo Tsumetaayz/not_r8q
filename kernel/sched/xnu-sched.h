@@ -225,27 +225,8 @@ struct run_queue {
 	bitmap_t                bitmap[BITMAP_LEN(NRQS)];       /* run queue bitmap array */
 	int                     count;                          /* # of threads total */
 	int                     urgency;                        /* level of preemption urgency */
-#if 0
-	circle_queue_head_t     queues[NRQS];           /* one for each priority */
-#endif
 	struct runq_stats       runq_stats;
 };
-
-#if 0
-inline static void
-rq_bitmap_set(bitmap_t *__header_indexable map, u_int n)
-{
-	if (n < NRQS)
-	bitmap_set(map, n);
-}
-
-inline static void
-rq_bitmap_clear(bitmap_t *__header_indexable map, u_int n)
-{
-	if (n < NRQS)
-	bitmap_clear(map, n);
-}
-#endif
 
 typedef struct {
 	queue_head_t            pri_queue;                      /* runnable RT threads for this priority */
@@ -275,37 +256,6 @@ typedef struct rt_queue *rt_queue_t;
 /*
  *	Scheduler routines.
  */
-#if 0
-/* Handle quantum expiration for an executing thread */
-extern void             thread_quantum_expire(
-	timer_call_param_t      processor,
-	timer_call_param_t      thread);
-
-/* Handle preemption timer expiration for an executing thread */
-extern void             thread_preempt_expire(
-	timer_call_param_t      processor,
-	timer_call_param_t      thread);
-
-/* Invoke the performance controller supplied callback on the processor */
-extern void             perfcontrol_timer_expire(
-	timer_call_param_t      processor,
-	timer_call_param_t      thread);
-
-/* Context switch check for current processor */
-extern ast_t    csw_check(
-	thread_t      thread,
-	processor_t   processor,
-	ast_t         check_reason);
-
-/* Check for pending ASTs */
-extern void ast_check(processor_t processor);
-
-extern ast_t update_pending_nonurgent_preemption(processor_t processor, ast_t reason);
-extern void clear_pending_nonurgent_preemption(processor_t processor);
-
-extern void sched_update_generation_count(void);
-#endif
-
 extern uint32_t std_quantum, min_std_quantum;
 extern uint32_t std_quantum_us;
 
@@ -317,8 +267,6 @@ extern uint32_t max_rt_quantum, min_rt_quantum;
 
 extern int default_preemption_rate;
 
-#if defined(CONFIG_SCHED_TIMESHARE_CORE)
-
 /*
  *	Age usage  at approximately (1 << SCHED_TICK_SHIFT) times per second
  *	Aging may be deferred during periods where all processors are idle
@@ -327,10 +275,8 @@ extern int default_preemption_rate;
 #define SCHED_TICK_SHIFT        3
 #define SCHED_TICK_MAX_DELTA    (8)
 
-extern _Atomic uint32_t sched_tick;
+extern uint32_t         sched_tick;
 extern uint32_t         sched_tick_interval;
-
-#endif /* CONFIG_SCHED_TIMESHARE_CORE */
 
 extern uint64_t         sched_one_second_interval;
 
@@ -364,10 +310,6 @@ extern int8_t           sched_load_shifts[NRQS];
 extern uint32_t         sched_decay_usage_age_factor;
 void sched_timeshare_consider_maintenance(uint64_t ctime, bool safe_point);
 
-#if 0
-void sched_consider_recommended_cores(uint64_t ctime, thread_t thread);
-#endif
-
 extern int32_t          sched_poll_yield_shift;
 extern uint64_t         sched_safe_rt_duration;
 extern uint64_t         sched_safe_fixed_duration;
@@ -381,16 +323,6 @@ extern uint64_t         max_unsafe_fixed_computation;
 extern uint64_t         max_poll_computation;
 
 extern uint32_t         sched_run_buckets[TH_BUCKET_MAX];
-
-#if 0
-extern uint32_t sched_run_incr(thread_t thread);
-extern uint32_t sched_run_decr(thread_t thread);
-extern void sched_update_thread_bucket(thread_t thread);
-
-extern uint32_t sched_smt_run_incr(thread_t thread);
-extern uint32_t sched_smt_run_decr(thread_t thread);
-extern void sched_smt_update_thread_bucket(thread_t thread);
-#endif
 
 #define SCHED_DECAY_TICKS       32
 struct shift_data {

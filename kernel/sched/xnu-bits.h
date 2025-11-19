@@ -73,105 +73,10 @@ bit_rol64(uint64_t bitmap, uint n)
 	!_bit_is_set; \
 })
 
-/*
- * Note on bit indexing: bit indices are offsets from the least significant bit.
- * So the bit at index `i` would be found by `1 & (bitmap >> i)`.
- */
-#if 0
-/* Returns the most significant '1' bit, or -1 if all zeros */
-inline static int
-bit_first(uint64_t bitmap)
-{
-	return 63 - __builtin_clzg(bitmap, 64);
-}
-
-
-inline static int
-__bit_next(uint64_t bitmap, int previous_bit)
-{
-	uint64_t mask = previous_bit ? mask(previous_bit) : ~0ULL;
-
-	return bit_first(bitmap & mask);
-}
-
-/* Returns the most significant '1' bit that is less significant than previous_bit,
- * or -1 if no such bit exists.
- */
-inline static int
-bit_next(uint64_t bitmap, int previous_bit)
-{
-	if (previous_bit == 0) {
-		return -1;
-	} else {
-		return __bit_next(bitmap, previous_bit);
-	}
-}
-
-/* Returns the least significant '1' bit, or -1 if all zeros */
-inline static int
-lsb_first(uint64_t bitmap)
-{
-	return __builtin_ctzg(bitmap, -1);
-}
-
-/* Returns the least significant '1' bit that is more significant than previous_bit,
- * or -1 if no such bit exists.
- * previous_bit may be -1, in which case this is equivalent to lsb_first()
- */
-inline static int
-lsb_next(uint64_t bitmap, int previous_bit)
-{
-	uint64_t mask = mask(previous_bit + 1);
-
-	return lsb_first(bitmap & ~mask);
-}
-
-inline static int
-bit_count(uint64_t x)
-{
-	return __builtin_popcountll(x);
-}
-
-/* Return the highest power of 2 that is <= n, or -1 if n == 0 */
-inline static int
-bit_floor(uint64_t n)
-{
-	return bit_first(n);
-}
-
-/* Return the lowest power of 2 that is >= n, or -1 if n == 0 */
-inline static int
-bit_ceiling(uint64_t n)
-{
-	if (n == 0) {
-		return -1;
-	}
-	return bit_first(n - 1) + 1;
-}
-#endif
-
 /* If n is a power of 2, bit_log2(n) == bit_floor(n) == bit_ceiling(n) */
 #define bit_log2(n)             bit_floor((uint64_t)(n))
 
 typedef uint64_t                bitmap_t;
-
-#if 0
-inline static bool
-atomic_bit_set(_Atomic bitmap_t *__single map, int n, int mem_order)
-{
-	bitmap_t prev;
-	prev = __c11_atomic_fetch_or(map, BIT(n), mem_order);
-	return bit_test(prev, n);
-}
-
-inline static bool
-atomic_bit_clear(_Atomic bitmap_t *__single map, int n, int mem_order)
-{
-	bitmap_t prev;
-	prev = __c11_atomic_fetch_and(map, ~BIT(n), mem_order);
-	return bit_test(prev, n);
-}
-#endif
 
 #define BITMAP_LEN(n)   (((uint)(n) + 63) >> 6)         /* Round to 64bit bitmap_t */
 #define BITMAP_SIZE(n)  (size_t)(BITMAP_LEN(n) << 3)            /* Round to 64bit bitmap_t, then convert to bytes */
