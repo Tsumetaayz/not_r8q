@@ -64,7 +64,8 @@
  *
  *	Header file for scheduler.
  */
-
+ 
+#include <xnu-mach_types.h>
 #include <xnu-bits.h>
 #include <xnu-queue.h>
 
